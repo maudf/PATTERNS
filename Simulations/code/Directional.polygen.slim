@@ -1,0 +1,196 @@
+initialize() {
+	// initialize constants
+	if (exists("slimgui"))
+	{
+		defineConstant("P", "Results/Directional/Opt_10_S_0.78_f_0.05/"); // Path to Results folder
+		defineConstant("O", 10); // Optimum
+		defineConstant("R", 1); // repeat ID
+		defineConstant("S", 0.78); // QTL effect size selection coefficient standard deviation.
+		defineConstant("f", 0.05); // selected mutation frequency at start
+	}
+	
+	// neutral mutations in non-coding regions
+	initializeMutationType("m1", 0.5, "f", 0.0); // neutral
+	initializeGenomicElementType("g1", m1, 1.0);
+	initializeMutationRate(2.36e-8);
+	
+	// mutations representing alleles in QTLs
+	scriptForQTLs = paste(c("if (runif(1) < 0.5) -" + 0 + "; else " + 0 +";"), sep='');
+	initializeMutationType("m2", 0.5, "s", scriptForQTLs); // QTLs
+	initializeGenomicElementType("g2", m2, 1.0);
+	m2.convertToSubstitution = F;
+	
+	// Setting up chromosomes
+	defineConstant("C", 20); // number of QTLs
+	defineConstant("N", 20); // number of neutral segments
+	defineConstant("W", 49999); // size of neutral buffer on each side
+	pos = 0;
+	q = NULL;
+	for (i in 1:C)
+	{
+		initializeGenomicElement(g1, pos, pos + W);
+		pos = pos + W + 1;
+		initializeGenomicElement(g2, pos, pos);
+		q = c(q, pos);
+		pos = pos + 1;
+		initializeGenomicElement(g1, pos, pos + W-1);
+		pos = pos + W;
+	}
+	
+	defineConstant("Q", q); // remember our QTL positions
+	
+	// Create neutral regions
+	u = NULL;
+	for (i in 1:N)
+	{
+		initializeGenomicElement(g1, pos, pos + W);
+		pos = pos + W + 1;
+		initializeGenomicElement(g1, pos, pos);
+		u = c(u, pos);
+		pos = pos + 1;
+		initializeGenomicElement(g1, pos, pos + W-1);
+		pos = pos + W;
+	}
+	defineConstant("U", u); // remember our neutral chromosome center position
+	
+	rates = c(rep(c(1e-8, 0.5), C), rep(c(1e-8, 0.5), N-1), 1e-8);
+	ends = (repEach(c(Q + W, U + W), 2) + rep(c(0,1), C + N))[0:((C + N)*2 - 2)];
+	initializeRecombinationRate(rates, ends);
+}
+
+// Starting Ancestral population
+1 late(){
+	defineConstant("simID", getSeed());
+	
+	sim.addSubpop("p1", 10000);
+	sim.addSubpopSplit("p2", 10000, p1);
+	p1.setMigrationRates(c(p2), c(15e-5));
+	p2.setMigrationRates(c(p1), c(15e-5));
+	
+	// Add mutations under selection in P2
+	g = sim.subpopulations.genomes;
+	
+	cat("\n-------------------------------\n\n");
+	cat("Add QTLs at generation " + (sim.generation - 1) + ".\n");
+	
+	// Add QTLs and output population additive QTL-based phenotypes
+	for (q in Q)
+	{
+		isPlus = asLogical(rbinom(size(g), 1, f)); // randomly pick the chromosome on which the mutation appears
+		effect = rnorm(1, 0, S); // randomly draw effect of mutation on the genome in gaussian of mean 0 and standard deviation S
+		old_effects = sim.getValue("all_effects");
+		sim.setValue("all_effects", c(old_effects, effect));
+		g[isPlus].addNewMutation(m2, effect, q);
+	}
+	cat("\n-------------------------------\n\n");
+	cat("Effect sizes of QTLs:\t");
+	cat(paste(sim.getValue("all_effects"), sep="\t") + "\n");
+	for (u in U)
+	{
+		isPlus = asLogical(rbinom(size(g), 1, f)); // randomly pick the chromosome on which the mutation appears
+		g[isPlus].addNewMutation(m1, 0, u);
+	}
+}
+
+fitness(m2) { return 1.0; }
+
+2 late(){
+	sim.outputFull("/tmp/slim_" + simID + ".txt");
+}
+
+1000:10000 late() {
+	mut = sim.mutationsOfType(m2);
+	for (subpop in c(p1,p2))  {
+		inds = subpop.individuals;
+		phenotype = inds.sumOfMutationsOfType(m2);
+		optimum = (subpop == p2 ? O else 0.0);
+		inds.fitnessScaling = 1.0 + dnorm(optimum - phenotype, 0.0, 5.0);   // gaussian individual fitness distribution with mean 0, sd 2
+		inds.tagF = phenotype;
+	}
+}
+
+1:10000 late() {
+	if (sim.generation % 100 == 0)
+	{
+		
+		// Add QTLs and output population additive QTL-based phenotypes
+		muts = sim.mutationsOfType(m2);
+		pf = sim.generation + "\t" + "All" ;
+		pf1= sim.generation + "\t" + "P1"  ;
+		pf2 = sim.generation + "\t" + "P2"  ;
+		
+		for (q in Q)
+		{
+			qPlus = muts[muts.position == q];
+			pf = pf + "\t" + sum(sim.mutationFrequencies(NULL, qPlus));
+			pf1= pf1+ "\t" + sum(sim.mutationFrequencies(p1, qPlus));
+			pf2 = pf2 + "\t" + sum(sim.mutationFrequencies(p2, qPlus));
+		}
+		
+		selectfreqFile = paste(c(P + 'Rep_' + R + '_OPT_' + O + '_ES_' + S + '_f_' + f + '_QTL_frequencies.txt'), sep="");
+		freqselect = pf + "\n" + pf1+ "\n" + pf2;
+		writeFile(selectfreqFile, freqselect, append = T);
+		
+		mutsN = sim.mutationsOfType(m1);
+		pf = sim.generation + "\t" + "All" ;
+		pf1= sim.generation + "\t" + "P1"  ;
+		pf2 = sim.generation + "\t" + "P2"  ;
+		
+		for (u in U)
+		{
+			qPlus = mutsN[mutsN.position == u];
+			pf = pf + "\t" + sum(sim.mutationFrequencies(NULL, qPlus));
+			pf1= pf1+ "\t" + sum(sim.mutationFrequencies(p1, qPlus));
+			pf2 = pf2 + "\t" + sum(sim.mutationFrequencies(p2, qPlus));
+		}
+		
+		neutralfreqFile = paste(c(P + 'Rep_' + R + '_OPT_' + O + '_ES_' + S + '_f_' + f + '_neutralMut_frequencies.txt'), sep="");
+		neutralselect = pf + "\n" + pf1+ "\n" + pf2;
+		writeFile(neutralfreqFile, neutralselect,  append = T);
+		
+		for (subpop in c(p1,p2))  {
+			inds = subpop.individuals;
+			phenotype = inds.sumOfMutationsOfType(m2);
+			inds.tagF = phenotype;
+		}
+		PhenoFile = paste(c(P + 'Rep_' + R + '_OPT_' + O + '_ES_' + S + '_f_' + f + '_phenotypes.txt'), sep="");
+		phenotype = sim.generation + "\t" + paste(c(mean(p1.individuals.tagF), mean(p2.individuals.tagF)), sep="\t");
+		writeFile(PhenoFile, phenotype, append = T);
+		
+		p1_p = sim.mutationFrequencies(p1);
+		p2_p = sim.mutationFrequencies(p2);
+		p1_n = p1.individualCount;
+		p2_n = p2.individualCount;
+		
+		freqFileP1 = paste(c(P + 'Rep_' + R + '_OPT_' + O + '_ES_' + S + '_f_' + f + '_P1_frequencies.txt'), sep="");
+		freqP1 = sim.generation + "\t" + paste(p1_p, sep="\t");
+		writeFile(freqFileP1, freqP1, append = T);
+		
+		
+		freqFileP2 = paste(c(P + 'Rep_' + R + '_OPT_' + O + '_ES_' + S + '_f_' + f + '_P2_frequencies.txt'), sep="");
+		freqP2 = sim.generation + "\t" + paste(p2_p, sep="\t");
+		writeFile(freqFileP2, freqP2, append = T);
+		
+		mean_p = (p1_p + p2_p) / 2.0;
+		H_t = 2.0 * mean_p * (1.0 - mean_p);
+		
+		HtFile = paste(c(P + 'Rep_' + R + '_OPT_' + O + '_ES_' + S + '_f_' + f + '_Ht.txt'), sep="");
+		writeFile(HtFile, paste( c(sim.generation + "\t" + paste(H_t, sep="\t")) ), append = T);
+		
+		H_s = (2.0 * p1_p * (1.0 - p1_p) * p1_n + 2.0 * p2_p * (1.0 - p2_p) * p2_n) / (p1_n + p2_n);
+		
+		HsFile = paste(c(P + 'Rep_' + R + '_OPT_' + O + '_ES_' + S + '_f_' + f + '_Hs.txt'), sep="");
+		writeFile(HsFile, paste( c(sim.generation + "\t" + paste(H_s, sep="\t")) ), append = T);
+	}
+}
+
+10000 late(){
+	vcfFile = paste(c(P + 'Rep_' + R + '_OPT_' + O + '_ES_' + S + '_f_' + f + '_Directional.vcf'), sep="");
+	allIndividuals1 = p1.individuals;
+	sampledIndividuals1 = sample(allIndividuals1, 100);
+	allIndividuals2 = p2.individuals;
+	sampledIndividuals2 = sample(allIndividuals2, 100);
+	sampledIndividuals=c(sampledIndividuals1, sampledIndividuals2);
+	sampledIndividuals.genomes.outputVCF(filePath = vcfFile);
+	sim.simulationFinished();
+}

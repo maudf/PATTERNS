@@ -12,13 +12,12 @@ Running the following scripts requires to have the following softwares and packa
 
 Software               | Where to find it  
 ---------------------- | ---------------------------------------------------  
-plink2 v1.90 or higher | [https://www.cog-genomics.org/plink2](https://www.cog-genomics.org/plink2)  
-htslib v1.12 or higher | [http://www.htslib.org](http://www.htslib.org)  
+plink2 >=1.90 | [https://www.cog-genomics.org/plink2](https://www.cog-genomics.org/plink2)  
+htslib >=1.12 | [http://www.htslib.org](http://www.htslib.org)  
 SelectionHapStats      | [https://github.com/ngarud/SelectionHapStats/](https://github.com/ngarud/SelectionHapStats)  
 
 ### List of required data files
 Running these scripts do not require any additional data files.
-
 
 ## Scripts pipeline
 To reproduce results and figures from our paper, run the following pipeline.

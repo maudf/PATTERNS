@@ -22,9 +22,6 @@ Running these scripts do not require any additional data files.
 
 ## Scripts pipeline
 To reproduce results and figures from our paper, run the following pipeline.
-```{r rsetup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, tidy = FALSE)
-```
 
 ### Run Simulations
 The scripts in this section allow to run the simulations using SLiM.

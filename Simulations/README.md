@@ -2,8 +2,8 @@
 Author: Maud Fagny
 
 ## Introduction
-This document describe all the data files and scripts necessary to replicates figures, supplementary figures, supplementary tables and datasets from the following paper:  
-Fagny M, Paulson JN, Kuijjer ML, Sonawane AR, Chen C.-Y., Lopes-Ramos CM, Glass K, Quackenbush J, Platig J. (2017) Exploring regulation in tissues with eQTL networks. _PNAS_ __114(37)__:E7841-E7850. [doi:10.1073/pnas.1707375114]()  
+This document describe all the data files and scripts necessary to
+generate the polygenic adaptation simulations used in the PATTERNS project.
 
 ## General settings
 

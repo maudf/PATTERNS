@@ -75,9 +75,9 @@ bash code/convert_VCF_BED.sh -o 5 -s 0.78 -f 0.05 -d ./Results/Directional/
 #### Reformat the vcf to run SelectionHapStats
 SelectionHapStats takes a specific file format in input: comma-separated file with one snp on each line. The first column contains the SNP position. For phased VCF, the following columns contain the SNP allele for each haplotype (A, C, G, T, N). The reformatting was done using a bash routine. An example is given for each file type:
 ```{bash qc, eval=FALSE}
-bash code/convert_VCF_BED_Neutral.sh -r 100 -s 0.78 -f 0.05 -d ./Results/Neutral/
-bash code/convert_VCF_BED.sh -r 100 -o 0 -s 0.78 -f 0.05 -d ./Results/Stabilizing/
-bash code/convert_VCF_BED.sh -r 100 -o 2 -s 0.78 -f 0.05 -d ./Results/Directional/
-bash code/convert_VCF_BED.sh -r 100 -o 5 -s 0.78 -f 0.05 -d ./Results/Directional/
+bash code/convert_VCF_BED_Neutral.sh -s 0.78 -f 0.05 -d ./Results/Neutral/
+bash code/convert_VCF_BED.sh -o 0 -s 0.78 -f 0.05 -d ./Results/Stabilizing/
+bash code/convert_VCF_BED.sh -o 2 -s 0.78 -f 0.05 -d ./Results/Directional/
+bash code/convert_VCF_BED.sh -o 5 -s 0.78 -f 0.05 -d ./Results/Directional/
 ```
 
